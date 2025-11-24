@@ -1,104 +1,109 @@
 import java.io.*;
 import java.net.*;
+import java.util.*;
 
 // Server class
 class Server {
+
+    private static final int PORT = 1234;
+    // A set to hold all client output streams
+    private static Set<PrintWriter> clientWriters = new HashSet<>(); 
+    // A map to associate output streams with client names
+    private static Map<PrintWriter, String> clientNames = new HashMap<>();
     public static void main(String[] args)
     {
-        ServerSocket server = null;
-
-        try {
-
-            // server is listening on port 1234
-            server = new ServerSocket(1234);
-            server.setReuseAddress(true);
-
-            // running infinite loop for getting
-            // client request
+        //Try catch for server socket (Automatically closes server socket)
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+            System.out.println("Server started. Waiting for clients to connect...");
+            
+            //Loop for accepting client connections
             while (true) {
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("New client connected: " + clientSocket.getInetAddress().getHostAddress());
 
-                // socket object to receive incoming client
-                // requests
-                Socket client = server.accept();
-
-                // Displaying that new client is connected
-                // to server
-                System.out.println("New client connected: " + client.getInetAddress().getHostAddress());
-
-                // create a new thread object
-                ClientHandler clientSock
-                    = new ClientHandler(client);
-
-                // This thread will handle the client
-                // separately
-                new Thread(clientSock).start();
+                //Handle each client in a new thread
+                new ClientHandler(clientSocket).start();
             }
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
-        }
-        finally {
-            if (server != null) {
-                try {
-                    server.close();
-                }
-                catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
         }
     }
 
     // ClientHandler class
-    private static class ClientHandler implements Runnable {
-        private final Socket clientSocket;
+    private static class ClientHandler extends Thread {
+        private Socket clientSocket;
+        //For sending messages to client
+        private PrintWriter out;
+        //For reading messages from client
+        private BufferedReader in;
+        //Used to store name of client
+        private String name;
 
-        // Constructor
-        public ClientHandler(Socket socket)
-        {
+        //Constructor
+        public ClientHandler(Socket socket) {
             this.clientSocket = socket;
         }
 
-        public void run()
-        {
-            PrintWriter out = null;
-            BufferedReader in = null;
+        public void run() {
             try {
-                  
-                  // get the outputstream of client
+                // get the outputstream of client
                 out = new PrintWriter(clientSocket.getOutputStream(), true);
-
-                  // get the inputstream of client
+                // get the inputstream of client
                 in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-
-                String line;
                 
-                String name = in.readLine();
-                System.out.println("User " + name + " has connected.");
-                
-                while ((line = in.readLine()) != null) {
-
-                    // writing the received message from
-                    // client
-                    System.out.printf("[" + name + "] " + line + "\n");
-                    out.println(line);
+                //Read the username sent by client
+                name = in.readLine();
+                //Store user name 
+                clientNames.put(out, name); 
+                synchronized (clientWriters) {
+                    clientWriters.add(out); 
                 }
-            }
-            catch (IOException e) {
+
+                //Notify all clients that a new user has joined
+                broadcastMessage(name + " has joined the chat.");
+
+                String message;
+                while ((message = in.readLine()) != null) {
+                    if ("exit".equalsIgnoreCase(message)) {
+                        break;
+                    }
+
+                    //Broadcast the received message to all users
+                    broadcastMessage(name + ": " + message);
+                }
+
+            } catch (IOException e) {
                 e.printStackTrace();
-            }
-            finally {
+            } finally {
+                //Process for when a user disconnects
                 try {
                     if (out != null) {
-                        out.close();
+                        synchronized (clientWriters) {
+                            //Remove user from the list
+                            clientWriters.remove(out); 
+                        }
+                    }
+                    if (name != null) {
+                        broadcastMessage(name + " has left the chat.");
                     }
                     if (in != null) {
                         in.close();
-                        clientSocket.close();
                     }
-                }
-                catch (IOException e) {
+                    if (out != null) {
+                        out.close();
+                    }
+                    clientSocket.close();
+                } catch (IOException e) {
                     e.printStackTrace();
+                }
+            }
+        }
+
+        //Broadcast message to all connected users
+        private void broadcastMessage(String message) {
+            synchronized (clientWriters) {
+                for (PrintWriter writer : clientWriters) {
+                    writer.println(message);
                 }
             }
         }
