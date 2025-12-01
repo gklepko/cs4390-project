@@ -1,69 +1,117 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
 import java.io.*;
 import java.net.*;
-import java.util.*;
 
 public class Client {
 
+    private JFrame frame;
+    private JTextArea chatArea;
+    private JTextField inputField;
+    private JTextField usernameField;
+    private JButton connectButton;
+    private JButton sendButton;
+
+    private PrintWriter out;
+    private BufferedReader in;
+    private Socket socket;
+
     public static void main(String[] args) {
-        //Try catch for socket
-        try (Socket socket = new Socket("localhost", 1234)) {
+        SwingUtilities.invokeLater(Client::new);
+    }
 
-            //Sscanner for user input
-            Scanner sc = new Scanner(System.in);
+    public Client() {
+        buildGUI();
+    }
 
-            //Asking user for username
-            System.out.print("What is your username? ");
-            String name = sc.nextLine();  
+    //Building GUI
+    private void buildGUI() {
+        frame = new JFrame("Chat");
+        frame.setSize(500, 500);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        chatArea = new JTextArea();
+        chatArea.setEditable(false);
+        chatArea.setLineWrap(true);
+        chatArea.setWrapStyleWord(true);
 
-            //Send username to server
-            out.println(name);
+        JScrollPane scrollPane = new JScrollPane(chatArea);
 
-            //Start a thread to listen for server messages
-            Thread listenerThread = new Thread(new Listener(in));
-            listenerThread.start();
+        //Top panel for username
+        JPanel topPanel = new JPanel(new BorderLayout());
+        usernameField = new JTextField();
+        connectButton = new JButton("Connect");
+        topPanel.add(usernameField, BorderLayout.CENTER);
+        topPanel.add(connectButton, BorderLayout.EAST);
 
-            //Main loop for sending messages to server
-            String line = null;
-            while (!"exit".equalsIgnoreCase(line)) {
-                line = sc.nextLine();
-                //Warn user if they try to send an empty message
-                if (line.equalsIgnoreCase("")) {
-                    System.out.println("You cannot send an empty message");
-                    continue;
+        //Bottom panel for messages
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        inputField = new JTextField();
+        sendButton = new JButton("Send");
+        sendButton.setEnabled(false);
+
+        bottomPanel.add(inputField, BorderLayout.CENTER);
+        bottomPanel.add(sendButton, BorderLayout.EAST);
+
+        //Layout
+        frame.setLayout(new BorderLayout());
+        frame.add(topPanel, BorderLayout.NORTH);
+        frame.add(scrollPane, BorderLayout.CENTER);
+        frame.add(bottomPanel, BorderLayout.SOUTH);
+
+        //Action listeners
+        connectButton.addActionListener(e -> connectToServer());
+        inputField.addActionListener(e -> sendMessage());
+        sendButton.addActionListener(e -> sendMessage());
+
+        frame.setVisible(true);
+    }
+
+    //For connecting client to server
+    private void connectToServer() {
+        String username = usernameField.getText().trim();
+        if (username.isEmpty()) {
+            JOptionPane.showMessageDialog(frame, "Enter a username.");
+            return;
+        }
+
+        try {
+            socket = new Socket("localhost", 1234);
+            out = new PrintWriter(socket.getOutputStream(), true);
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+            out.println(username);
+
+            usernameField.setEditable(false);
+            connectButton.setEnabled(false);
+            sendButton.setEnabled(true);
+
+            //Start listener thread
+            Thread listener = new Thread(() -> {
+                try {
+                    String msg;
+                    while ((msg = in.readLine()) != null) {
+                        chatArea.append(msg + "\n");
+                        chatArea.setCaretPosition(chatArea.getDocument().getLength());
+                    }
+                } catch (IOException e) {
+                    chatArea.append("Disconnected from server.\n");
                 }
+            });
 
-                //Send message to server
-                out.println(line);
-            }
+            listener.start();
 
-            sc.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            JOptionPane.showMessageDialog(frame, "Cannot connect to server.");
         }
     }
 
-    //Listener class to handle server messages
-    private static class Listener implements Runnable {
-        private BufferedReader in;
-
-        public Listener(BufferedReader in) {
-            this.in = in;
+    private void sendMessage() {
+        String msg = inputField.getText().trim();
+        if (!msg.isEmpty()) {
+            out.println(msg);
         }
-
-        @Override
-        public void run() {
-            try {
-                String message;
-                while ((message = in.readLine()) != null) {
-                    //Print server messages 
-                    System.out.println(message);  
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+        inputField.setText("");
     }
 }
