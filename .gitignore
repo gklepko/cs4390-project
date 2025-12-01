@@ -1,0 +1,22 @@
+# OS-specific files (macOS)
+.DS_Store
+
+# Java compiled classes
+*.class
+
+# Build output directories
+/bin/
+/out/
+/build/
+/target/
+
+# Logs
+*.log
+
+# Eclipse project files
+.classpath
+.project
+.settings/
+
+# VS Code workspace settings
+.vscode/
