@@ -1,5 +1,7 @@
 import java.io.*;
 import java.net.*;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.*;
 
 // Server class
@@ -10,16 +12,24 @@ class Server {
     private static Set<PrintWriter> clientWriters = new HashSet<>(); 
     // A map to associate output streams with client names
     private static Map<PrintWriter, String> clientNames = new HashMap<>();
+
+    private static LogWriter log;
     public static void main(String[] args)
     {
+        log = new LogWriter();
+        String msg;
         //Try catch for server socket (Automatically closes server socket)
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
-            System.out.println("Server started. Waiting for clients to connect...");
+            msg = "Server started. Waiting for clients to connect...";
+            System.out.println(msg);
+            log.writeLog(msg, "SYS");
             
             //Loop for accepting client connections
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("New client connected: " + clientSocket.getInetAddress().getHostAddress());
+                msg = "New client connected: " + clientSocket.getInetAddress().getHostAddress();
+                System.out.println(msg);
+                log.writeLog(msg, "SYS");
 
                 //Handle each client in a new thread
                 new ClientHandler(clientSocket).start();
@@ -39,12 +49,17 @@ class Server {
         //Used to store name of client
         private String name;
 
+        private LogWriter log;
+
         //Constructor
         public ClientHandler(Socket socket) {
             this.clientSocket = socket;
         }
 
         public void run() {
+            log = new LogWriter();
+            String msg;
+
             try {
                 // get the outputstream of client
                 out = new PrintWriter(clientSocket.getOutputStream(), true);
@@ -60,16 +75,18 @@ class Server {
                 }
 
                 //Notify all clients that a new user has joined
-                broadcastMessage(name + " has joined the chat.");
+                msg = name + " has joined the chat.";
+                broadcastMessage(msg);
+                log.writeLog(msg, "SYS");
 
-                String message;
-                while ((message = in.readLine()) != null) {
-                    if ("exit".equalsIgnoreCase(message)) {
+                while ((msg = in.readLine()) != null) {
+                    if ("exit".equalsIgnoreCase(msg)) {
                         break;
                     }
 
                     //Broadcast the received message to all users
-                    broadcastMessage(name + ": " + message);
+                    broadcastMessage(name + ": " + msg);
+                    log.writeLog(msg, "CHAT");
                 }
 
             } catch (IOException e) {
@@ -84,7 +101,9 @@ class Server {
                         }
                     }
                     if (name != null) {
-                        broadcastMessage(name + " has left the chat.");
+                        msg = name + " has left the chat.";
+                        broadcastMessage(msg);
+                        log.writeLog(msg, "SYS");
                     }
                     if (in != null) {
                         in.close();
@@ -106,6 +125,44 @@ class Server {
                     writer.println(message);
                 }
             }
+        }
+    }
+
+    private static class LogWriter {
+        private String fileName;
+
+        public LogWriter()
+        {
+            this.fileName = generateFileName();
+        }
+
+        public void writeLog(String msg, String logType) throws IOException
+        {
+            File logDir = new File("logs");
+            if (!logDir.exists()) {
+                logDir.mkdirs();
+            }
+
+            File logFile = new File(logDir, fileName);
+
+            try(FileWriter writer = new FileWriter(logFile, true)) {
+                writer.write("[" + logType + "] " + msg + "\n");
+            }
+        }
+
+        private String generateFileName() {
+            LocalDate currentDate = LocalDate.now();
+            LocalTime currentTime = LocalTime.now();
+            fileName = "" + currentDate + "-" + currentTime;
+
+            // Shorten length
+            int lastColon = fileName.lastIndexOf(':');
+            fileName = fileName.substring(0, lastColon);
+            fileName = fileName.replace(':', '-');
+
+            fileName = fileName + ".log";
+
+            return fileName;
         }
     }
 }
