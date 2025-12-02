@@ -1,9 +1,14 @@
 import java.awt.*;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.io.*;
 import java.net.*;
 import javax.swing.*;
 
 public class Client {
+    private static final String USERNAME_PLACEHOLDER = "Username";
+    private static final String ADDRESS_PLACEHOLDER = "Address";
+    private static final String PORT_PLACEHOLDER = "Port";
 
     private JFrame frame;
     private JTextArea chatArea;
@@ -40,10 +45,17 @@ public class Client {
 
         //Top panel for username, ip, port
         JPanel topPanel = new JPanel(new GridLayout(1,4));
-        usernameField = new JTextField("Username");
-        addressField = new JTextField("Address");
-        portField = new JTextField("Port");
+        usernameField = new JTextField();
+        addressField = new JTextField();
+        portField = new JTextField();
+
+        // Add placeholder behavior
+        addPlaceholder(usernameField, USERNAME_PLACEHOLDER);
+        addPlaceholder(addressField, ADDRESS_PLACEHOLDER);
+        addPlaceholder(portField, PORT_PLACEHOLDER);
+
         connectButton = new JButton("Connect");
+
         topPanel.add(usernameField);
         topPanel.add(addressField);
         topPanel.add(portField);
@@ -72,11 +84,41 @@ public class Client {
         frame.setVisible(true);
     }
 
-    //For connecting client to server
+    // Adds placeholder behavior into a JTextField
+    private void addPlaceholder(JTextField field, String placeholder) {
+        field.setForeground(Color.GRAY);
+        field.setText(placeholder);
+
+        field.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if(field.getText().equals(placeholder)) {
+                    field.setText("");
+                    field.setForeground(Color.BLACK);
+                }
+            }
+
+            @Override
+            public void focusLost(FocusEvent e) {
+                if(field.getText().isEmpty()) {
+                    field.setForeground(Color.GRAY);
+                    field.setText(placeholder);
+                }
+            }
+        });
+    }
+
+    // Returns "" if the field still contains the placeholder, otherwise trimmed text
+    private String getTextOrEmpty(JTextField field, String placeholder) {
+        String text = field.getText().trim();
+        return text.equals(placeholder) ? "" : text;
+    }
+
+    // For connecting client to server
     private void connectToServer() {
-        String username = usernameField.getText().trim();
-        String address = addressField.getText().trim();
-        String port = portField.getText().trim();
+        String username = getTextOrEmpty(usernameField, USERNAME_PLACEHOLDER);
+        String address = getTextOrEmpty(addressField, ADDRESS_PLACEHOLDER);
+        String port = getTextOrEmpty(portField, PORT_PLACEHOLDER);
 
         if (username.isEmpty()) {
             JOptionPane.showMessageDialog(frame, "Enter a username.");
