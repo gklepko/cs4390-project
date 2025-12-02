@@ -3,7 +3,9 @@ import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.io.*;
 import java.net.*;
+import java.util.*;
 import javax.swing.*;
+import javax.swing.text.*;
 
 public class Client {
     private static final String USERNAME_PLACEHOLDER = "Username";
@@ -11,7 +13,7 @@ public class Client {
     private static final String PORT_PLACEHOLDER = "Port";
 
     private JFrame frame;
-    private JTextArea chatArea;
+    private JTextPane chatArea;
     private JTextField inputField;
     private JTextField usernameField;
     private JTextField addressField;
@@ -21,6 +23,10 @@ public class Client {
     private PrintWriter out;
     private BufferedReader in;
     private Socket socket;
+
+    private StyledDocument doc; 
+    private Map<String, Color> userColors = new HashMap<>();
+    private Random random = new Random();
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Client::new);
@@ -36,11 +42,9 @@ public class Client {
         frame.setSize(500, 500);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        chatArea = new JTextArea();
+        chatArea = new JTextPane();
         chatArea.setEditable(false);
-        chatArea.setLineWrap(true);
-        chatArea.setWrapStyleWord(true);
-
+        doc = chatArea.getStyledDocument();
         JScrollPane scrollPane = new JScrollPane(chatArea);
 
         //Top panel for username, ip, port
@@ -101,7 +105,7 @@ public class Client {
             @Override
             public void focusLost(FocusEvent e) {
                 if(field.getText().isEmpty()) {
-                    field.setForeground(Color.GRAY);
+                    field.setForeground(Color.BLACK);
                     field.setText(placeholder);
                 }
             }
@@ -148,11 +152,11 @@ public class Client {
                 try {
                     String msg;
                     while ((msg = in.readLine()) != null) {
-                        chatArea.append(msg + "\n");
+                        appendMessage(msg + "\n");
                         chatArea.setCaretPosition(chatArea.getDocument().getLength());
                     }
                 } catch (IOException e) {
-                    chatArea.append("Disconnected from server.\n");
+                    appendMessage("Disconnected from server.\n");
                 }
             });
 
@@ -169,5 +173,47 @@ public class Client {
             out.println(msg);
         }
         inputField.setText("");
+    }
+    // Append message with only username colored
+    private void appendMessage(String msg) {
+        try {
+            int colonIndex = msg.indexOf(":");
+            if (colonIndex != -1) {
+                String username = msg.substring(0, colonIndex);
+                String text = msg.substring(colonIndex); // includes ": message"
+
+                // Assign a unique color to the username
+                Color color = userColors.computeIfAbsent(username,
+                        k -> new Color(random.nextInt(256), random.nextInt(256), random.nextInt(256)));
+
+                // Style username
+                SimpleAttributeSet usernameStyle = new SimpleAttributeSet();
+                StyleConstants.setForeground(usernameStyle, color);
+                doc.insertString(doc.getLength(), username, usernameStyle);
+
+                // Style message text (black)
+                SimpleAttributeSet messageStyle = new SimpleAttributeSet();
+                StyleConstants.setForeground(messageStyle, Color.GRAY);
+                doc.insertString(doc.getLength(), text , messageStyle);
+
+            } else {
+                // System message
+                appendSystemMessage(msg);
+            }
+            chatArea.setCaretPosition(doc.getLength());
+        } catch (BadLocationException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void appendSystemMessage(String msg) {
+        try {
+            SimpleAttributeSet sysStyle = new SimpleAttributeSet();
+            StyleConstants.setForeground(sysStyle, Color.GRAY);
+            doc.insertString(doc.getLength(), msg + "\n", sysStyle);
+            chatArea.setCaretPosition(doc.getLength());
+        } catch (BadLocationException e) {
+            e.printStackTrace();
+        }
     }
 }

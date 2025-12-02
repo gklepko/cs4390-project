@@ -6,6 +6,20 @@
     "configurations": [
         {
             "type": "java",
+            "name": "Client",
+            "request": "launch",
+            "mainClass": "Client",
+            "projectName": "cs4390-project_b01b38d0"
+        },
+        {
+            "type": "java",
+            "name": "Server",
+            "request": "launch",
+            "mainClass": "Server",
+            "projectName": "cs4390-project_b01b38d0"
+        },
+        {
+            "type": "java",
             "name": "ChatClientGUI",
             "request": "launch",
             "mainClass": "ChatClientGUI",
