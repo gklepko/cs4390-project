@@ -19,9 +19,7 @@ public class ClientHandler extends Thread {
     private LogWriter log;
 
     // Constructor
-    public ClientHandler(Socket socket,
-                         Set<PrintWriter> clientWriters,
-                         Map<PrintWriter, String> clientNames) {
+    public ClientHandler(Socket socket, Set<PrintWriter> clientWriters, Map<PrintWriter, String> clientNames) {
         this.clientSocket = socket;
         this.clientWriters = clientWriters;
         this.clientNames = clientNames;
