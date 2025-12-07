@@ -60,7 +60,7 @@ public class ClientHandler extends Thread {
             }
 
         } catch (IOException e) {
-            e.printStackTrace();
+            e.printStackTrace(); //test comment
         } finally {
             // Process for when a user disconnects
             try {
