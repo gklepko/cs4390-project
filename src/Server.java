@@ -1,7 +1,6 @@
 import java.io.*;
+import java.lang.reflect.Array;
 import java.net.*;
-import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.*;
 
 // Server class
@@ -12,6 +11,7 @@ class Server {
     private static Set<PrintWriter> clientWriters = new HashSet<>(); 
     // A map to associate output streams with client names
     private static Map<PrintWriter, String> clientNames = new HashMap<>();
+    private static ArrayList<String> connectedUsernameList = new ArrayList<>();
 
     private static LogWriter log;
     public static void main(String[] args)
@@ -69,7 +69,8 @@ class Server {
                 //Read the username sent by client
                 name = in.readLine();
                 //Store user name 
-                clientNames.put(out, name); 
+                clientNames.put(out, name);
+                connectedUsernameList.add(name);
                 synchronized (clientWriters) {
                     clientWriters.add(out); 
                 }
@@ -77,6 +78,15 @@ class Server {
                 //Notify all clients that a new user has joined
                 msg = name + " has joined the chat.";
                 broadcastMessage(msg);
+
+                //Update connected clients to all users
+                String connectedUserString = "";
+                for (String client : connectedUsernameList)
+                {
+                    connectedUserString += client + ",";
+                }
+                broadcastMessage("#" + connectedUserString);
+
                 log.writeLog(msg, "SYS");
 
                 while ((msg = in.readLine()) != null) {
@@ -102,7 +112,14 @@ class Server {
                     }
                     if (name != null) {
                         msg = name + " has left the chat.";
+                        connectedUsernameList.remove(name);
                         broadcastMessage(msg);
+                        String connectedUserString = "";
+                        for (String client : connectedUsernameList)
+                        {
+                            connectedUserString += client + ",";
+                        }
+                        broadcastMessage("#" + connectedUserString);
                         log.writeLog(msg, "SYS");
                     }
                     if (in != null) {
@@ -125,44 +142,6 @@ class Server {
                     writer.println(message);
                 }
             }
-        }
-    }
-
-    private static class LogWriter {
-        private String fileName;
-
-        public LogWriter()
-        {
-            this.fileName = generateFileName();
-        }
-
-        public void writeLog(String msg, String logType) throws IOException
-        {
-            File logDir = new File("logs");
-            if (!logDir.exists()) {
-                logDir.mkdirs();
-            }
-
-            File logFile = new File(logDir, fileName);
-
-            try(FileWriter writer = new FileWriter(logFile, true)) {
-                writer.write("[" + logType + "] " + msg + "\n");
-            }
-        }
-
-        private String generateFileName() {
-            LocalDate currentDate = LocalDate.now();
-            LocalTime currentTime = LocalTime.now();
-            fileName = "" + currentDate + "-" + currentTime;
-
-            // Shorten length
-            int lastColon = fileName.lastIndexOf(':');
-            fileName = fileName.substring(0, lastColon);
-            fileName = fileName.replace(':', '-');
-
-            fileName = fileName + ".log";
-
-            return fileName;
         }
     }
 }
